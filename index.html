@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Satellite Map with Polygon Analysis</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
+<style>
+#map { height: 100vh; }
+.info { padding: 10px; background: white; }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+<script>
+// Initialize the map
+const map = L.map('map').setView([35.6892, 51.389], 10); // Tehran coordinates
+
+// Add satellite layer
+const satellite = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+maxZoom: 18,
+attribution: '© OpenStreetMap contributors'
+}).addTo(map);
+
+// Add drawing controls
+const drawnItems = new L.FeatureGroup();
+map.addLayer(drawnItems);
+
+const drawControl = new L.Control.Draw({
+edit: {
+featureGroup: drawnItems
+},
+draw: {
+polygon: true,
+polyline: false,
+rectangle: false,
+circle: false,
+marker: false
+}
+});
+map.addControl(drawControl);
+
+// Handle polygon creation
+map.on(L.Draw.Event.CREATED, function (e) {
+const layer = e.layer;
+drawnItems.addLayer(layer);
+
+// Get polygon coordinates
+const coordinates = layer.getLatLngs();
+console.log('Polygon Coordinates:', coordinates);
+
+// Example: Fetch evaporation data for the polygon
+fetchEvaporationData(coordinates).then(data => {
+const average = calculateAverage(data);
+alert(`Average Evaporation: ${average.toFixed(2)} mm`);
+});
+});
+
+// Example function to fetch evaporation data (replace with actual API logic)
+async function fetchEvaporationData(coords) {
+// Simulate API call
+return new Promise(resolve => {
+setTimeout(() => resolve([2.5, 3.0, 2.8, 3.1]), 1000); // Sample data
+});
+}
+
+// Calculate average value
+function calculateAverage(data) {
+return data.reduce((sum, val) => sum + val, 0) / data.length;
+}
+</script>
+</body>
+</html>
