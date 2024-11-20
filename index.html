@@ -1,76 +1,209 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Satellite Map with Polygon Analysis</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
-<style>
-#map { height: 100vh; }
-.info { padding: 10px; background: white; }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Satellite Map with Polygon Analysis</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/simple-statistics@7.8.3/dist/simple-statistics.min.js"></script>
+    <style>
+        #map { height: 70vh; }
+        .info { padding: 10px; background: white; }
+        #charts { display: flex; justify-content: space-around; }
+        .chart-container { width: 45%; }
+    </style>
 </head>
 <body>
-<div id="map"></div>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
-<script>
-// Initialize the map
-const map = L.map('map').setView([35.6892, 51.389], 10); // Tehran coordinates
+    <div id="map"></div>
+    <div id="charts">
+        <div class="chart-container">
+            <canvas id="yearlyChart"></canvas>
+        </div>
+        <div class="chart-container">
+            <canvas id="monthlyChart"></canvas>
+        </div>
+    </div>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+    <script>
+    // Initialize the map
+    const map = L.map('map').setView([31.6892, 53.389], 10);
 
-// Add satellite layer
-const satellite = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-maxZoom: 18,
-attribution: '© OpenStreetMap contributors'
-}).addTo(map);
+    // Add satellite layer
+    const satellite = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 18,
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
 
-// Add drawing controls
-const drawnItems = new L.FeatureGroup();
-map.addLayer(drawnItems);
+    // Add drawing controls
+    const drawnItems = new L.FeatureGroup();
+    map.addLayer(drawnItems);
 
-const drawControl = new L.Control.Draw({
-edit: {
-featureGroup: drawnItems
-},
-draw: {
-polygon: true,
-polyline: false,
-rectangle: false,
-circle: false,
-marker: false
-}
-});
-map.addControl(drawControl);
+    const drawControl = new L.Control.Draw({
+        edit: {
+            featureGroup: drawnItems
+        },
+        draw: {
+            polygon: true,
+            polyline: false,
+            rectangle: false,
+            circle: false,
+            marker: false
+        }
+    });
+    map.addControl(drawControl);
 
-// Handle polygon creation
-map.on(L.Draw.Event.CREATED, function (e) {
-const layer = e.layer;
-drawnItems.addLayer(layer);
+    // Handle polygon creation
+    map.on(L.Draw.Event.CREATED, function (e) {
+        const layer = e.layer;
+        drawnItems.addLayer(layer);
 
-// Get polygon coordinates
-const coordinates = layer.getLatLngs();
-console.log('Polygon Coordinates:', coordinates);
+        // Get polygon coordinates
+        const coordinates = layer.getLatLngs();
+        console.log('Polygon Coordinates:', coordinates);
 
-// Example: Fetch evaporation data for the polygon
-fetchEvaporationData(coordinates).then(data => {
-const average = calculateAverage(data);
-alert(`Average Evaporation: ${average.toFixed(2)} mm`);
-});
-});
+        // Fetch evaporation data for the polygon
+        fetchEvaporationData(coordinates).then(data => {
+            createCharts(data);
+        });
+    });
 
-// Example function to fetch evaporation data (replace with actual API logic)
-async function fetchEvaporationData(coords) {
-// Simulate API call
-return new Promise(resolve => {
-setTimeout(() => resolve([2.5, 3.0, 2.8, 3.1]), 1000); // Sample data
-});
-}
+    // Function to fetch evaporation data (replace with actual API logic)
+    async function fetchEvaporationData(coords) {
+        // Simulate API call
+        return new Promise(resolve => {
+            setTimeout(() => {
+                const yearlyData = [];
+                const monthlyData = [];
+                for (let year = 2010; year <= 2023; year++) {
+                    yearlyData.push({ year: year, value: Math.random() * 100 + 50 });
+                    for (let month = 0; month < 12; month++) {
+                        monthlyData.push({ year: year, month: month, value: Math.random() * 10 + 5 });
+                    }
+                }
+                resolve({ yearly: yearlyData, monthly: monthlyData });
+            }, 1000);
+        });
+    }
 
-// Calculate average value
-function calculateAverage(data) {
-return data.reduce((sum, val) => sum + val, 0) / data.length;
-}
-</script>
+    function createCharts(data) {
+        createYearlyChart(data.yearly);
+        createMonthlyChart(data.monthly);
+    }
+
+    function createYearlyChart(data) {
+        const ctx = document.getElementById('yearlyChart').getContext('2d');
+        const years = data.map(d => d.year);
+        const values = data.map(d => d.value);
+
+        const regression = ss.linearRegression(years.map((y, i) => [y, values[i]]));
+        const regressionLine = years.map(y => regression.m * y + regression.b);
+
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: years,
+                datasets: [{
+                    label: 'تبخیر و تعرق سالانه',
+                    data: values,
+                    borderColor: 'blue',
+                    fill: false
+                }, {
+                    label: 'روند',
+                    data: regressionLine,
+                    borderColor: 'red',
+                    borderDash: [5, 5],
+                    fill: false
+                }]
+            },
+            options: {
+                responsive: true,
+                title: {
+                    display: true,
+                    text: 'نمودار سالانه تبخیر و تعرق واقعی'
+                },
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'سال'
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'تبخیر و تعرق (میلی‌متر)'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: true
+                    }
+                }
+            }
+        });
+    }
+
+    function createMonthlyChart(data) {
+        const ctx = document.getElementById('monthlyChart').getContext('2d');
+        const months = data.map(d => `${d.year}-${d.month + 1}`);
+        const values = data.map(d => d.value);
+
+        const regression = ss.linearRegression(values.map((v, i) => [i, v]));
+        const regressionLine = values.map((_, i) => regression.m * i + regression.b);
+
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: months,
+                datasets: [{
+                    label: 'تبخیر و تعرق ماهانه',
+                    data: values,
+                    borderColor: 'green',
+                    fill: false
+                }, {
+                    label: 'روند',
+                    data: regressionLine,
+                    borderColor: 'orange',
+                    borderDash: [5, 5],
+                    fill: false
+                }]
+            },
+            options: {
+                responsive: true,
+                title: {
+                    display: true,
+                    text: 'نمودار ماهانه تبخیر و تعرق واقعی'
+                },
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'ماه'
+                        },
+                        ticks: {
+                            maxRotation: 90,
+                            minRotation: 90
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'تبخیر و تعرق (میلی‌متر)'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: true
+                    }
+                }
+            }
+        });
+    }
+    </script>
 </body>
 </html>
